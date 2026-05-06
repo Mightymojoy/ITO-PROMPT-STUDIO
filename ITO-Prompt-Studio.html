@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITO 图像提示词生成器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #1a1a1a;
+            --secondary: #f5f5f5;
+            --accent: #000;
+            --text: #333;
+            --text-light: #666;
+            --border: #e0e0e0;
+            --hover: #f0f0f0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--secondary);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        
+        /* Header */
+        header {
+            background: var(--primary);
+            color: #fff;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: #fff;
+        }
+        
+        .btn-primary {
+            background: #fff;
+            color: var(--primary);
+            border-color: #fff;
+        }
+        
+        .btn-primary:hover {
+            background: var(--hover);
+        }
+        
+        /* Main Layout */
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 24px;
+            padding: 24px 40px;
+            max-width: 1600px;
+            margin: 0 auto;
+            min-height: calc(100vh - 80px);
+        }
+        
+        /* Left Panel - Generator */
+        .generator {
+            background: #fff;
+            border-radius: 4px;
+            padding: 32px;
+        }
+        
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            letter-spacing: 1px;
+        }
+        
+        /* Category Tabs */
+        .category-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 28px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-light);
+            position: relative;
+            transition: color 0.2s;
+        }
+        
+        .tab:hover { color: var(--text); }
+        
+        .tab.active {
+            color: var(--primary);
+            font-weight: 500;
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+        }
+        
+        /* Form Fields */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            transition: border-color 0.2s;
+            background: #fff;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        
+        /* Quick Tags */
+        .quick-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .tag {
+            padding: 6px 12px;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .tag:hover {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        
+        .tag.selected {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        
+        /* Generate Button */
+        .generate-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: opacity 0.2s;
+            margin-top: 24px;
+        }
+        
+        .generate-btn:hover { opacity: 0.85; }
+        
+        /* Right Panel */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .panel {
+            background: #fff;
+            border-radius: 4px;
+            padding: 24px;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        
+        /* Output Area */
+        .output-area {
+            background: var(--secondary);
+            padding: 20px;
+            font-size: 13px;
+            line-height: 1.8;
+            min-height: 200px;
+            border: 1px solid var(--border);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .copy-btn {
+            padding: 8px 16px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        .copy-btn:hover { opacity: 0.85; }
+        
+        /* History List */
+        .history-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .history-item:hover { background: var(--hover); }
+        
+        .history-item:last-child { border-bottom: none; }
+        
+        .history-title {
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .history-meta {
+            font-size: 11px;
+            color: var(--text-light);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .history-preview {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-top: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* Share Panel */
+        .share-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .share-btn {
+            padding: 12px;
+            border: 1px solid var(--border);
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .share-btn:hover {
+            background: var(--secondary);
+            border-color: var(--primary);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-overlay.active { display: flex; }
+        
+        .modal {
+            background: #fff;
+            padding: 32px;
+            width: 500px;
+            max-width: 90%;
+            border-radius: 4px;
+        }
+        
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+        
+        .modal-btn {
+            padding: 10px 20px;
+            border: 1px solid var(--border);
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .modal-btn.primary {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--primary);
+            color: #fff;
+            padding: 12px 24px;
+            font-size: 13px;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 2000;
+        }
+        
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+            font-size: 13px;
+        }
+        
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active { display: block; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); }
+        ::-webkit-scrollbar-thumb:hover { background: #ccc; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">ITO PROMPT STUDIO</div>
+        <div class="header-actions">
+            <button class="btn" onclick="exportAllHistory()">导出全部</button>
+            <button class="btn" onclick="document.getElementById('importFile').click()">导入分享</button>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importHistory(event)">
+        </div>
+    </header>
+    
+    <div class="container">
+        <!-- Left: Generator -->
+        <div class="generator">
+            <div class="category-tabs">
+                <button class="tab active" data-tab="portrait">人像摄影</button>
+                <button class="tab" data-tab="product">产品摄影</button>
+                <button class="tab" data-tab="landscape">风光建筑</button>
+                <button class="tab" data-tab="creative">意境创意</button>
+            </div>
+            
+            <!-- Portrait Tab -->
+            <div class="tab-content active" id="portrait">
+                <div class="form-group">
+                    <label class="form-label">主体描述</label>
+                    <input type="text" class="form-input" id="p-subject" placeholder="如：亚洲女性，25-30岁">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">表情/情绪</label>
+                        <select class="form-select" id="p-emotion">
+                            <option value="">选择情绪</option>
+                            <option value="calm">冷静克制</option>
+                            <option value="tender">温柔浪漫</option>
+                            <option value="dramatic">大胆戏剧</option>
+                            <option value="violent">暴烈张力</option>
+                            <option value="mysterious">神秘忧郁</option>
+                            <option value="pure">纯真清新</option>
+                            <option value="melancholy">孤独疏离</option>
+                            <option value="hope">希望光明</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">服装风格</label>
+                        <select class="form-select" id="p-style">
+                            <option value="">选择风格</option>
+                            <option value="business attire, tailored blazer">商务正装</option>
+                            <option value="casual streetwear, denim jacket">休闲街拍</option>
+                            <option value="elegant evening dress">晚礼服</option>
+                            <option value="minimalist white shirt">极简白衬衫</option>
+                            <option value="vintage 90s aesthetic">复古90年代</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">姿势</label>
+                    <input type="text" class="form-input" id="p-pose" placeholder="如：侧身站立，自然回眸">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">背景处理</label>
+                    <select class="form-select" id="p-background">
+                        <option value="clean white background, studio setting">纯白干净背景</option>
+                        <option value="soft gradient background, bokeh effect">柔焦渐变背景</option>
+                        <option value="urban cityscape, shallow depth">城市街景虚化</option>
+                        <option value="natural outdoor setting">自然户外环境</option>
+                        <option value="abstract architectural interior">抽象建筑室内</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">光线设置</label>
+                    <div class="quick-tags">
+                        <span class="tag" data-group="p-light" onclick="toggleTag(this)">黄金时刻</span>
+                        <span class="tag" data-group="p-light" onclick="toggleTag(this)">蝴蝶光</span>
+                        <span class="tag" data-group="p-light" onclick="toggleTag(this)">伦勃朗</span>
+                        <span class="tag" data-group="p-light" onclick="toggleTag(this)">轮廓光</span>
+                        <span class="tag" data-group="p-light" onclick="toggleTag(this)">柔光箱</span>
+                        <span class="tag" data-group="p-light" onclick="toggleTag(this)">明暗对比</span>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">相机/镜头</label>
+                        <select class="form-select" id="p-camera">
+                            <option value="85mm f/1.4">85mm f/1.4</option>
+                            <option value="50mm f/1.2">50mm f/1.2</option>
+                            <option value="35mm f/1.4">35mm f/1.4</option>
+                            <option value="135mm f/1.8">135mm f/1.8</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">景深效果</label>
+                        <select class="form-select" id="p-dof">
+                            <option value="shallow depth, creamy bokeh">浅景深·奶油散景</option>
+                            <option value="medium depth, subtle blur">中等景深</option>
+                            <option value="deep focus, sharp throughout">深景深·全部清晰</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">参考风格</label>
+                    <select class="form-select" id="p-reference">
+                        <option value="Annie Leibovitz editorial style">Annie Leibovitz</option>
+                        <option value="Peter Lindbergh cinematic monochrome">Peter Lindbergh</option>
+                        <option value="Steven Meisel high fashion">Steven Meisel</option>
+                        <option value="Riin Magazine editorial">Riin Magazine</option>
+                        <option value="Porsche Design minimal aesthetic">Porsche Design</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">调色方向</label>
+                    <div class="quick-tags">
+                        <span class="tag" data-group="p-color" onclick="toggleTag(this)">Kodak Portra</span>
+                        <span class="tag" data-group="p-color" onclick="toggleTag(this)">Fuji Velvia</span>
+                        <span class="tag" data-group="p-color" onclick="toggleTag(this)">Cinestill</span>
+                        <span class="tag" data-group="p-color" onclick="toggleTag(this)">高级灰</span>
+                        <span class="tag" data-group="p-color" onclick="toggleTag(this)">日系小清新</span>
+                    </div>
+                </div>
+                <button class="generate-btn" onclick="generatePortrait()">生 成 提 示 词</button>
+            </div>
+            
+            <!-- Product Tab -->
+            <div class="tab-content" id="product">
+                <div class="form-group">
+                    <label class="form-label">产品名称</label>
+                    <input type="text" class="form-input" id="pr-name" placeholder="如：ITO GINKGO 4 行李箱">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">产品材质/颜色</label>
+                    <input type="text" class="form-input" id="pr-material" placeholder="如：磨砂金属，深空灰">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">拍摄类型</label>
+                    <select class="form-select" id="pr-type">
+                        <option value="hero shot, single product center frame">主图单品</option>
+                        <option value="lifestyle shot, product in use">场景使用</option>
+                        <option value="detail shot, macro close-up">细节特写</option>
+                        <option value="group shot, multiple angles">多角度组合</option>
+                        <option value="scale shot, with reference object">比例参照</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">表面/背景</label>
+                    <select class="form-select" id="pr-surface">
+                        <option value="seamless white background, clean studio">纯白无缝背景</option>
+                        <option value="light gray gradient, soft reflection">浅灰渐变</option>
+                        <option value="marble surface, natural stone texture">大理石表面</option>
+                        <option value="wooden surface, warm tones">木质表面</option>
+                        <option value="dark matte surface, dramatic lighting">深色哑光</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">照明设置</label>
+                    <select class="form-select" id="pr-light">
+                        <option value="softbox from above, clean gradient">顶柔光箱</option>
+                        <option value="rim lighting, edge highlight">边缘轮廓光</option>
+                        <option value="key light 45-degree, fill reflection">45度主光</option>
+                        <option value="dramatic single light, high contrast">戏剧性单灯</option>
+                        <option value="natural window light, soft diffused">自然窗光</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">品牌参考</label>
+                    <select class="form-select" id="pr-brand">
+                        <option value="Apple product photography aesthetic">Apple</option>
+                        <option value="Porsche Design industrial elegance">Porsche Design</option>
+                        <option value="Muji minimalist Japanese style">无印良品</option>
+                        <option value="Hermes luxury editorial">爱马仕</option>
+                        <option value="Tiffany blue brand aesthetic">蒂芙尼</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">输出质量</label>
+                    <select class="form-select" id="pr-quality">
+                        <option value="8K resolution, commercial advertising quality">8K 广告级</option>
+                        <option value="4K resolution, high-end e-commerce">4K 电商级</option>
+                        <option value="ultra-detailed, product catalog quality">产品目录级</option>
+                    </select>
+                </div>
+                <button class="generate-btn" onclick="generateProduct()">生 成 提 示 词</button>
+            </div>
+            
+            <!-- Landscape Tab -->
+            <div class="tab-content" id="landscape">
+                <div class="form-group">
+                    <label class="form-label">场景类型</label>
+                    <select class="form-select" id="l-type">
+                        <option value="urban cityscape, modern architecture">城市建筑</option>
+                        <option value="natural landscape, mountains and valleys">自然山川</option>
+                        <option value="interior architecture, minimalist space">极简室内</option>
+                        <option value="coastal seascape, ocean horizon">海岸海景</option>
+                        <option value="aerial view, drone perspective">航拍视角</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">时间/天气</label>
+                    <select class="form-select" id="l-time">
+                        <option value="golden hour, warm sunlight, long shadows">黄金时刻</option>
+                        <option value="blue hour, cool tones, city lights">蓝调时刻</option>
+                        <option value="clear midday, bright natural light">晴朗正午</option>
+                        <option value="overcast, soft diffused light, moody">阴天柔和</option>
+                        <option value="dramatic storm clouds, cinematic">戏剧性暴风雨</option>
+                        <option value="night scene, city lights, stars">夜景星空</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">光线方向</label>
+                    <div class="quick-tags">
+                        <span class="tag" data-group="l-light" onclick="toggleTag(this)">侧光</span>
+                        <span class="tag" data-group="l-light" onclick="toggleTag(this)">逆光</span>
+                        <span class="tag" data-group="l-light" onclick="toggleTag(this)">顶光</span>
+                        <span class="tag" data-group="l-light" onclick="toggleTag(this)">脚光</span>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">相机设置</label>
+                        <select class="form-select" id="l-camera">
+                            <option value="wide-angle 16mm, deep depth of field">广角 16mm</option>
+                            <option value="standard 35mm, balanced perspective">标准 35mm</option>
+                            <option value="telephoto 85mm, compressed background">长焦 85mm</option>
+                            <option value="tilt-shift, perspective control">移轴镜头</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">构图风格</label>
+                        <select class="form-select" id="l-composition">
+                            <option value="rule of thirds, balanced">三分法</option>
+                            <option value="centered composition, symmetrical">居中对称</option>
+                            <option value="leading lines, dynamic flow">引导线</option>
+                            <option value="frame within frame, layered">框架构图</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">参考风格</label>
+                    <select class="form-select" id="l-reference">
+                        <option value="Hasselblad">哈苏自然色</option>
+                        <option value="Ansel Adams">Ansel Adams</option>
+                        <option value="Icelandic">冰岛风格</option>
+                        <option value="Wabi_sabi">侘寂美学</option>
+                        <option value="Germanic">德国建筑</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">画面情绪</label>
+                    <select class="form-select" id="l-mood">
+                        <option value="calm">宁静沉思</option>
+                        <option value="dramatic">壮美震撼</option>
+                        <option value="pure">纯净清新</option>
+                        <option value="mysterious">神秘深邃</option>
+                    </select>
+                </div>
+                <button class="generate-btn" onclick="generateLandscape()">生 成 提 示 词</button>
+            </div>
+            
+            <!-- Creative Tab -->
+            <div class="tab-content" id="creative">
+                <div class="form-group">
+                    <label class="form-label">核心意境</label>
+                    <input type="text" class="form-input" id="c-concept" placeholder="如：孤独的旅行者">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">情绪基调</label>
+                    <select class="form-select" id="c-mood">
+                        <option value="calm">冷静克制</option>
+                        <option value="tender">温柔浪漫</option>
+                        <option value="dramatic">大胆戏剧</option>
+                        <option value="violent">暴烈毁灭</option>
+                        <option value="mysterious">神秘忧郁</option>
+                        <option value="fantasy">空灵梦幻</option>
+                        <option value="pure">纯真清新</option>
+                        <option value="melancholy">孤独沉默</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">意境详解（选填）</label>
+                    <textarea class="form-textarea" id="c-detail" placeholder="描述你想要的意境细节，如：孤独不是寂寞，是在人群中找到自我..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">艺术风格</label>
+                    <select class="form-select" id="c-art">
+                        <option value="fine art photography, museum quality">艺术摄影</option>
+                        <option value="conceptual art, thought-provoking">概念艺术</option>
+                        <option value="fashion editorial, high gloss">时尚大片</option>
+                        <option value="documentary, raw authentic">纪实风格</option>
+                        <option value="cinematic film still">电影剧照</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">东方意境关键词</label>
+                    <div class="quick-tags">
+                        <span class="tag" data-group="c-eastern" onclick="toggleTag(this)">水墨</span>
+                        <span class="tag" data-group="c-eastern" onclick="toggleTag(this)">留白</span>
+                        <span class="tag" data-group="c-eastern" onclick="toggleTag(this)">禅意</span>
+                        <span class="tag" data-group="c-eastern" onclick="toggleTag(this)">烟雨</span>
+                        <span class="tag" data-group="c-eastern" onclick="toggleTag(this)">云雾</span>
+                        <span class="tag" data-group="c-eastern" onclick="toggleTag(this)">枯山水</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">混合媒介</label>
+                    <select class="form-select" id="c-media">
+                        <option value="pure photography, no effects">纯摄影</option>
+                        <option value="double exposure, layered imagery">双重曝光</option>
+                        <option value="film grain, analog aesthetic">胶片颗粒</option>
+                        <option value="long exposure, light trails">长曝光</option>
+                        <option value="tilt-shift miniature effect">微缩景观</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">输出平台</label>
+                    <select class="form-select" id="c-platform">
+                        <option value="Instagram square, social media">Instagram</option>
+                        <option value="magazine cover, print quality">杂志封面</option>
+                        <option value="exhibition print, large format">展览输出</option>
+                        <option value="digital campaign, web banner">数字广告</option>
+                    </select>
+                </div>
+                <button class="generate-btn" onclick="generateCreative()">生 成 提 示 词</button>
+            </div>
+        </div>
+        
+        <!-- Right: Output + History -->
+        <div class="sidebar">
+            <!-- Output Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">生成的提示词</span>
+                    <button class="copy-btn" onclick="copyOutput()">复制</button>
+                </div>
+                <div class="output-area" id="output">选择类别并填写参数，点击生成按钮获取专业提示词...</div>
+            </div>
+            
+            <!-- History Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">历史记录</span>
+                    <button class="copy-btn" onclick="clearHistory()" style="background:#666">清空</button>
+                </div>
+                <div class="history-list" id="historyList">
+                    <div class="empty-state">暂无历史记录</div>
+                </div>
+            </div>
+            
+            <!-- Share Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">团队分享</span>
+                </div>
+                <div class="share-section">
+                    <div class="share-btn" onclick="exportTeamShare()">
+                        📤 导出当前提示词分享
+                    </div>
+                    <div class="share-btn" onclick="document.getElementById('importFile2').click()">
+                        📥 导入团队分享文件
+                    </div>
+                    <input type="file" id="importFile2" accept=".json" style="display:none" onchange="importTeamShare(event)">
+                    <p style="font-size:11px;color:#999;margin-top:8px;">
+                        导出的JSON文件放入共享文件夹，团队成员点击导入即可使用
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- Prompt Engine -->
+    <script src="prompt-engine.js"></script>
+    
+    <script>
+        // ===== Data Storage =====
+        const STORAGE_KEY = 'ito_prompt_history';
+        
+        function getHistory() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : [];
+        }
+        
+        function saveHistory(history) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+        }
+        
+        // ===== Tab Navigation =====
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+        
+        // ===== Tag Toggle =====
+        function toggleTag(el) {
+            el.classList.toggle('selected');
+        }
+        
+        function getSelectedTags(group) {
+            return Array.from(document.querySelectorAll(`.tag[data-group="${group}"].selected`))
+                .map(t => t.textContent);
+        }
+        
+        // ===== Toast =====
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+        
+        // ===== Generator Functions (Professional) =====
+        function generatePortrait() {
+            const config = {
+                subject: document.getElementById('p-subject').value || '人物',
+                emotion: getSelectedTagValue('p-emotion'),
+                clothing: document.getElementById('p-style').value,
+                pose: document.getElementById('p-pose').value,
+                background: document.getElementById('p-background').value,
+                lens: document.getElementById('p-camera').value,
+                aperture: document.getElementById('p-dof').value.split(',')[0],
+                dof: document.getElementById('p-dof').value,
+                colorGrade: getSelectedTagValue('p-color'),
+                reference: document.getElementById('p-reference').value,
+                lighting: getSelectedTags('p-light')
+            };
+            
+            const prompt = PromptEngine.generatePortrait(config);
+            displayOutput(prompt, '人像摄影');
+        }
+        
+        function generateProduct() {
+            const config = {
+                productName: document.getElementById('pr-name').value || '产品',
+                material: document.getElementById('pr-material').value,
+                type: document.getElementById('pr-type').value,
+                surface: document.getElementById('pr-surface').value,
+                lighting: document.getElementById('pr-light').value,
+                brand: document.getElementById('pr-brand').value,
+                quality: document.getElementById('pr-quality').value
+            };
+            
+            const prompt = PromptEngine.generateProduct(config);
+            displayOutput(prompt, '产品摄影');
+        }
+        
+        function generateLandscape() {
+            const config = {
+                sceneType: document.getElementById('l-type').value,
+                time: document.getElementById('l-time').value,
+                lighting: getSelectedTags('l-light'),
+                lens: document.getElementById('l-camera').value,
+                composition: document.getElementById('l-composition').value,
+                reference: document.getElementById('l-reference').value,
+                mood: getSelectedTagValue('l-mood')
+            };
+            
+            const prompt = PromptEngine.generateLandscape(config);
+            displayOutput(prompt, '风光建筑');
+        }
+        
+        function generateCreative() {
+            const config = {
+                concept: document.getElementById('c-concept').value || '抽象意境',
+                conceptDetail: document.getElementById('c-detail').value,
+                mood: getSelectedTagValue('c-mood'),
+                artStyle: document.getElementById('c-art').value,
+                eastern: getSelectedTags('c-eastern'),
+                media: document.getElementById('c-media').value,
+                platform: document.getElementById('c-platform').value,
+                prohibition: document.getElementById('c-prohibition')?.value
+            };
+            
+            const prompt = PromptEngine.generateCreative(config);
+            displayOutput(prompt, '意境创意');
+        }
+        
+        function getSelectedTagValue(selectId) {
+            const el = document.getElementById(selectId);
+            return el?.value || '';
+        }
+        
+        function displayOutput(prompt, category) {
+            const output = document.getElementById('output');
+            output.textContent = prompt;
+            
+            // Save to history
+            const history = getHistory();
+            history.unshift({
+                id: Date.now(),
+                category,
+                prompt,
+                time: new Date().toLocaleString('zh-CN')
+            });
+            
+            // Keep only last 50
+            if (history.length > 50) history.pop();
+            saveHistory(history);
+            
+            renderHistory();
+            showToast('提示词已生成并保存');
+        }
+        
+        // ===== Output Operations =====
+        function copyOutput() {
+            const text = document.getElementById('output').textContent;
+            navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板'));
+        }
+        
+        // ===== History =====
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            const history = getHistory();
+            
+            if (history.length === 0) {
+                list.innerHTML = '<div class="empty-state">暂无历史记录</div>';
+                return;
+            }
+            
+            list.innerHTML = history.map(item => `
+                <div class="history-item" onclick="loadHistory(${item.id})">
+                    <div class="history-title">${item.category}</div>
+                    <div class="history-meta">
+                        <span>${item.time}</span>
+                    </div>
+                    <div class="history-preview">${item.prompt.substring(0, 60)}...</div>
+                </div>
+            `).join('');
+        }
+        
+        function loadHistory(id) {
+            const history = getHistory();
+            const item = history.find(h => h.id === id);
+            if (item) {
+                document.getElementById('output').textContent = item.prompt;
+                showToast('已加载历史记录');
+            }
+        }
+        
+        function clearHistory() {
+            if (confirm('确定清空所有历史记录？')) {
+                localStorage.removeItem(STORAGE_KEY);
+                renderHistory();
+                showToast('历史记录已清空');
+            }
+        }
+        
+        // ===== Team Share =====
+        function exportTeamShare() {
+            const prompt = document.getElementById('output').textContent;
+            if (prompt.startsWith('选择')) {
+                showToast('请先生成提示词');
+                return;
+            }
+            
+            const data = {
+                type: 'ito_prompt_share',
+                version: '1.0',
+                prompt,
+                category: getCurrentCategory(),
+                time: new Date().toISOString(),
+                author: 'ITO Team'
+            };
+            
+            downloadJSON(data, `ito-prompt-${Date.now()}.json`);
+            showToast('已导出分享文件');
+        }
+        
+        function getCurrentCategory() {
+            const activeTab = document.querySelector('.tab.active');
+            return activeTab ? activeTab.textContent : '通用';
+        }
+        
+        function exportAllHistory() {
+            const history = getHistory();
+            if (history.length === 0) {
+                showToast('没有可导出的历史记录');
+                return;
+            }
+            
+            const data = {
+                type: 'ito_prompt_history_backup',
+                version: '1.0',
+                exportTime: new Date().toISOString(),
+                history
+            };
+            
+            downloadJSON(data, `ito-history-${Date.now()}.json`);
+            showToast('已导出历史记录');
+        }
+        
+        function importHistory(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (data.type === 'ito_prompt_history_backup') {
+                        const existing = getHistory();
+                        const merged = [...data.history, ...existing];
+                        saveHistory(merged.slice(0, 100));
+                        renderHistory();
+                        showToast(`已导入 ${data.history.length} 条记录`);
+                    } else if (data.type === 'ito_prompt_share') {
+                        document.getElementById('output').textContent = data.prompt;
+                        showToast('已导入提示词');
+                    }
+                } catch (err) {
+                    showToast('文件格式错误');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+        
+        function importTeamShare(event) {
+            importHistory(event);
+        }
+        
+        function downloadJSON(data, filename) {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // ===== Init =====
+        renderHistory();
+    </script>
+</body>
+</html>
